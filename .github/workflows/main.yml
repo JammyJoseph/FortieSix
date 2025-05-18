@@ -1,0 +1,152 @@
+name: Project Setup
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Create Project Structure
+        run: |
+          mkdir -p src/{client,server,shared}/{components,styles,utils,types}
+          mkdir -p src/client/{pages,hooks,store}
+          mkdir -p src/server/{routes,middleware,services,config}
+          mkdir -p prisma public
+          
+      - name: Create Configuration Files
+        run: |
+          # Create tsconfig.json
+          echo '{
+            "compilerOptions": {
+              "target": "ES2020",
+              "useDefineForClassFields": true,
+              "lib": ["ES2020", "DOM", "DOM.Iterable"],
+              "module": "ESNext",
+              "skipLibCheck": true,
+              "moduleResolution": "bundler",
+              "allowImportingTsExtensions": true,
+              "resolveJsonModule": true,
+              "isolatedModules": true,
+              "noEmit": true,
+              "jsx": "react-jsx",
+              "strict": true,
+              "noUnusedLocals": true,
+              "noUnusedParameters": true,
+              "noFallthroughCasesInSwitch": true,
+              "baseUrl": ".",
+              "paths": {
+                "@/*": ["src/*"]
+              }
+            },
+            "include": ["src"],
+            "references": [{ "path": "./tsconfig.node.json" }]
+          }' > tsconfig.json
+
+          # Create vite.config.ts
+          echo 'import { defineConfig } from "vite";
+          import react from "@vitejs/plugin-react";
+          import path from "path";
+
+          export default defineConfig({
+            plugins: [react()],
+            resolve: {
+              alias: {
+                "@": path.resolve(__dirname, "./src"),
+              },
+            },
+            server: {
+              proxy: {
+                "/api": {
+                  target: "http://localhost:3001",
+                  changeOrigin: true,
+                },
+                "/socket.io": {
+                  target: "http://localhost:3001",
+                  ws: true,
+                },
+              },
+            },
+          });' > vite.config.ts
+
+          # Create tailwind.config.js
+          echo 'module.exports = {
+            content: ["./src/**/*.{js,jsx,ts,tsx}"],
+            theme: {
+              extend: {
+                colors: {
+                  "win95": {
+                    gray: "#c0c0c0",
+                    blue: "#000080",
+                    cyan: "#008080",
+                    green: "#008000",
+                    silver: "#c0c0c0",
+                  }
+                },
+                fontFamily: {
+                  "dos": ["Perfect DOS VGA 437", "monospace"]
+                }
+              },
+            },
+            plugins: [],
+          };' > tailwind.config.js
+
+          # Create postcss.config.js
+          echo 'module.exports = {
+            plugins: {
+              tailwindcss: {},
+              autoprefixer: {},
+            },
+          };' > postcss.config.js
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Create Initial React Components
+        run: |
+          # Create App.tsx
+          echo 'import { BrowserRouter as Router } from "react-router-dom";
+          import "./styles/globals.css";
+
+          function App() {
+            return (
+              <Router>
+                <div className="min-h-screen bg-win95-gray">
+                  {/* Your Windows 95/98 styled components will go here */}
+                </div>
+              </Router>
+            );
+          }
+
+          export default App;' > src/client/App.tsx
+
+          # Create main.tsx
+          echo 'import React from "react";
+          import ReactDOM from "react-dom/client";
+          import App from "./App";
+          import "./styles/globals.css";
+
+          ReactDOM.createRoot(document.getElementById("root")!).render(
+            <React.StrictMode>
+              <App />
+            </React.StrictMode>
+          );' > src/client/main.tsx
+
+      - name: Commit Changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Project setup via GitHub Actions"
+          git push origin HEAD:main
